@@ -19,7 +19,7 @@ class ToolRuntime(private val context: Context) {
 
     fun onlineEnabled() = prefs.getBoolean("online_enabled", true)
     fun mcpEndpoint() = prefs.getString("mcp_endpoint", "")?.trim().orEmpty()
-    fun isTrusted(name: String): Boolean = if (name.startsWith("mcp_")) mcpTrustedNames().contains(name.removePrefix("mcp_")) else prefs.getBoolean("trusted_$name", true)
+    fun isTrusted(name: String): Boolean = when (name) { "mcp_list_tools", "mcp_call" -> true; else -> if (name.startsWith("mcp_")) mcpTrustedNames().contains(name.removePrefix("mcp_")) else prefs.getBoolean("trusted_$name", true) }
     fun mcpTrustedNames(): Set<String> = prefs.getString("mcp_trusted_names", "").orEmpty().split(",").map { it.trim() }.filter { it.isNotBlank() }.toSet()
     fun setMcpTrustedNames(names: Set<String>) { prefs.edit().putString("mcp_trusted_names", names.joinToString(",")).apply() }
     fun setOnlineEnabled(enabled: Boolean) { prefs.edit().putBoolean("online_enabled", enabled).apply() }

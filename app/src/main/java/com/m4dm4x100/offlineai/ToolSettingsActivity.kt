@@ -70,7 +70,7 @@ class ToolSettingsActivity : Activity() {
         })
         mcpNames = EditText(this).apply {
             hint = "e.g. search_docs, read_calendar"
-            setText("")
+            setText(runtime.mcpTrustedNames().joinToString(", "))
         }
         content.addView(mcpNames)
         content.addView(Button(this).apply {
@@ -114,8 +114,7 @@ class ToolSettingsActivity : Activity() {
         checks.forEach { (key, check) -> runtime.setTrusted(key, check.isChecked) }
         val names = mcpNames.text.toString().split(',').map { it.trim() }.filter { it.matches(Regex("[A-Za-z0-9_.-]{1,100}")) }.toSet()
         // MCP tools are opt-in; unlisted names are explicitly disabled.
-        val previous = runtime.mcpEndpoint()
-        names.forEach { runtime.setTrusted("mcp_$it", true) }
+        runtime.setMcpTrustedNames(names)
         status.text = if (names.isEmpty()) "Saved. No MCP tools are enabled for automatic execution." else "Saved. Enabled MCP tools: " + names.joinToString()
     }
 }

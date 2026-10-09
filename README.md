@@ -29,13 +29,13 @@ Chat and image labeling/OCR run on-device. Translation language packs may need t
 This is an initial implementation. Multimodal image-question answering requires a compatible multimodal model/runtime; the built-in image tools currently provide offline image labels and OCR, and can pass their results to Gemma chat for interpretation. No claim is made that every Gemma model or phone is supported.
 
 ## Tool calling
-Open **Tools** from the top navigation to enable/disable online access, select trusted local tools, and configure an optional HTTP(S) MCP endpoint. Chat asks the local model to return a JSON routing decision; when it selects a registered tool, the app executes the allow-listed tool and feeds the result back to the local model.
+Open **Tools** from the top navigation to enable/disable online access, select trusted local tools, and configure an optional HTTPS MCP endpoint. Chat asks the local model to return a JSON routing decision; when it selects a registered tool, the app executes the allow-listed tool and feeds the result back to the local model.
 
 Included tools:
 - **Files and notes:** list, read, and write text notes in app-private storage.
 - **Personal memory:** read local memory; the model is instructed to save only when you explicitly ask it to remember something.
 - **Android actions:** open Wi-Fi/Bluetooth/app settings, open HTTP(S) links, and invoke the system share sheet. No shell or arbitrary intents.
 - **Web search:** read-only Wikipedia search, available only when online tools are enabled.
-- **MCP:** configure a compatible HTTP(S) MCP endpoint and explicitly list the server tool names permitted to run automatically. Only tools reported by the server can be called.
+- **MCP:** configure a compatible HTTPS MCP endpoint and explicitly list the server tool names permitted to run automatically. Only tools reported by the server can be called.
 
 MCP compatibility depends on the server's HTTP transport. The current lightweight client supports JSON-RPC tools/list and tools/call over HTTP(S); servers requiring additional initialization, OAuth, or transport-specific session negotiation may not work. Only configure MCP servers you trust. Tool routing depends on the installed model following the requested JSON format; unsupported models may answer normally instead of calling tools.

@@ -184,7 +184,14 @@ class MainActivity : ComponentActivity() {
                 val mcpCatalog = withContext(Dispatchers.IO) { runtime.trustedMcpToolPrompt() }
                 val routingPrompt = runtime.toolsPrompt() + "\n" + mcpCatalog +
                     "\n\nUser request: " + question
-                val routed = withContext(Dispatchers.IO) { engine.generateResponse(routingPrompt) }
+                val routed = try {
+                    withContext(Dispatchers.IO) { engine.generateResponse(routingPrompt) }
+                } catch (routingError: Exception) {
+                    // A router prompt can exceed a model's supported context window.
+                    // Still try the user's actual message as a normal chat prompt.
+                    setStatus("Tool routing failed; trying normal chat…")
+                    ""
+                }
                 val decision = parseToolDecision(routed)
 
                 // Some Gemma models do not reliably follow JSON-only routing prompts.

@@ -147,7 +147,7 @@ class ToolRuntime(private val context: Context) {
         val endpoint = mcpEndpoint()
         require(endpoint.isNotBlank()) { "Configure an MCP server endpoint in Tools first." }
         val uri = Uri.parse(endpoint)
-        require(uri.scheme == "https" || uri.scheme == "http") { "MCP endpoint must use http/https." }
+        require(uri.scheme == "https") { "MCP endpoint must use HTTPS." }
         val conn = URL(endpoint).openConnection() as HttpURLConnection
         conn.requestMethod = "POST"
         conn.connectTimeout = 8000
@@ -155,7 +155,15 @@ class ToolRuntime(private val context: Context) {
         conn.doOutput = true
         conn.setRequestProperty("Content-Type", "application/json")
         conn.setRequestProperty("Accept", "application/json, text/event-stream")
-        val payload = JSONObject().put("jsonrpc", "2.0").put("id", System.currentTimeMillis()).put("method", method).put("params", params)
+        conn.setRequestProperty("MCP-Protocol-Version", "2026-07-28")
+        conn.setRequestProperty("Mcp-Method", method)
+        if (method == "tools/call") conn.setRequestProperty("Mcp-Name", params.optString("name"))
+        val metadata = JSONObject()
+            .put("io.modelcontextprotocol/protocolVersion", "2026-07-28")
+            .put("io.modelcontextprotocol/clientInfo", JSONObject().put("name", "OfflineAI").put("version", "1.0.0"))
+            .put("io.modelcontextprotocol/clientCapabilities", JSONObject())
+        val requestParams = JSONObject(params.toString()).put("_meta", metadata)
+        val payload = JSONObject().put("jsonrpc", "2.0").put("id", System.currentTimeMillis()).put("method", method).put("params", requestParams)
         conn.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
         return try {
             val body = conn.inputStream.bufferedReader().use { it.readText() }

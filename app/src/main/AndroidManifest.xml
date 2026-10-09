@@ -2,6 +2,7 @@
  <uses-permission android:name="android.permission.INTERNET" />
  <application android:allowBackup="false" android:label="OfflineAI" android:theme="@android:style/Theme.Material.Light.NoActionBar" android:supportsRtl="true" android:usesCleartextTraffic="false">
   <activity android:name=".ToolSettingsActivity" android:exported="false" />
+  <activity android:name=".ModelManagerActivity" android:exported="false" />
   <activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity>
  </application>
 </manifest>

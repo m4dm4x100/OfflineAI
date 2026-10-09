@@ -5,6 +5,8 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
+import android.view.View
+import android.view.animation.DecelerateInterpolator
 import android.widget.*
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
@@ -29,7 +31,32 @@ class MainActivity : ComponentActivity() {
     private lateinit var modelStatus: TextView
     private lateinit var chatView: TextView
     private lateinit var prompt: EditText
-    private val modelFile by lazy { File(filesDir, "gemma.task") }
+    private val prefs by lazy { getSharedPreferences("offlineai", MODE_PRIVATE) }
+    private fun modelFile(): File {
+        val dir = File(filesDir, "models").apply { mkdirs() }
+        val selected = prefs.getString("active_model", null)
+        if (selected != null) File(dir, selected).takeIf { it.isFile }?.let { return it }
+        val legacy = File(filesDir, "gemma.task")
+        if (legacy.isFile) {
+            val migrated = File(dir, "Imported-Gemma.task")
+            if (!migrated.exists()) legacy.copyTo(migrated, overwrite = false)
+            prefs.edit().putString("active_model", migrated.name).apply()
+            return migrated
+        }
+        return dir.listFiles { file -> file.isFile && file.extension.equals("task", true) }
+            ?.firstOrNull() ?: File(dir, "gemma.task")
+    }
+    private val modelManager = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK) {
+            llm?.close()
+            llm = null
+            val selected = modelFile()
+            if (selected.exists()) loadModel() else {
+                modelStatus.text = "No model loaded"
+                setStatus("Import a compatible .task model in Model Manager.")
+            }
+        }
+    }
     private val history = StringBuilder()
     private val picker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { it?.let(::importModel) }
     private val imagePicker = registerForActivityResult(ActivityResultContracts.GetContent()) { it?.let(::analyzeImage) }
@@ -38,8 +65,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(18, 16, 18, 10); setBackgroundColor(0xFFF7F7FB.toInt()) }
-        root.addView(TextView(this).apply { text = "OfflineAI"; textSize = 28f; setTextColor(0xFF202124.toInt()); setTypeface(null, 1) })
+        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(18, 16, 18, 10); setBackgroundColor(if (darkTheme()) 0xFF10131A.toInt() else 0xFFF4F6FB.toInt()) }
+        val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        header.addView(TextView(this).apply { text = "OfflineAI"; textSize = 28f; setTextColor(if (darkTheme()) 0xFFF0F3FA.toInt() else 0xFF202124.toInt()); setTypeface(null, 1) }, LinearLayout.LayoutParams(0, -2, 1f))
+        header.addView(button(if (darkTheme()) "☀ Light" else "☾ Dark") {
+            prefs.edit().putBoolean("dark_theme", !darkTheme()).apply()
+            recreate()
+        })
+        root.addView(header)
         root.addView(TextView(this).apply { text = "Your private, on-device AI companion"; textSize = 14f; setTextColor(0xFF5F6368.toInt()) })
         modelStatus = TextView(this).apply { setPadding(0, 8, 0, 4); setTextColor(0xFF3367D6.toInt()) }
         root.addView(modelStatus)
@@ -47,7 +80,7 @@ class MainActivity : ComponentActivity() {
         nav.addView(button("Chat") { showChat() }, LinearLayout.LayoutParams(0, 48, 1f))
         nav.addView(button("Image") { showImageTools() }, LinearLayout.LayoutParams(0, 48, 1f))
         nav.addView(button("Translate") { showTranslate() }, LinearLayout.LayoutParams(0, 48, 1f))
-        nav.addView(button("Model") { picker.launch(arrayOf("*/*")) }, LinearLayout.LayoutParams(0, 48, 1f))
+        nav.addView(button("Models") { modelManager.launch(Intent(this, ModelManagerActivity::class.java)) }, LinearLayout.LayoutParams(0, 48, 1f))
         nav.addView(button("Tools") { startActivity(Intent(this, ToolSettingsActivity::class.java)) }, LinearLayout.LayoutParams(0, 48, 1f))
         root.addView(nav)
         status = TextView(this).apply { setPadding(0, 6, 0, 6); textSize = 12f; setTextColor(0xFF5F6368.toInt()) }
@@ -56,17 +89,54 @@ class MainActivity : ComponentActivity() {
         root.addView(body, LinearLayout.LayoutParams(-1, 0, 1f))
         setContentView(root)
         showChat()
-        if (modelFile.exists()) loadModel() else setStatus("Import a compatible Gemma .task model to begin.")
+        applyThemeTree(root)
+        if (modelFile().exists()) loadModel() else setStatus("Open Models to import a compatible Gemma .task file.")
     }
 
-    private fun button(label: String, action: () -> Unit) = Button(this).apply { text = label; textSize = 11f; setOnClickListener { action() } }
+    private fun darkTheme() = prefs.getBoolean("dark_theme", false)
+    private fun paletteSurface() = if (darkTheme()) 0xFF1B202B.toInt() else 0xFFFFFFFF.toInt()
+    private fun paletteFg() = if (darkTheme()) 0xFFF0F3FA.toInt() else 0xFF202636.toInt()
+    private fun paletteMuted() = if (darkTheme()) 0xFFB0B8C8.toInt() else 0xFF667085.toInt()
+    private fun paletteAccent() = if (darkTheme()) 0xFF9BB8FF.toInt() else 0xFF315FE8.toInt()
+    private fun applyThemeTree(view: View) {
+        if (view is Button) {
+            view.isAllCaps = false
+            view.setTextColor(if (darkTheme()) 0xFF10131A.toInt() else 0xFFFFFFFF.toInt())
+            view.backgroundTintList = android.content.res.ColorStateList.valueOf(paletteAccent())
+        } else if (view is EditText) {
+            view.setTextColor(paletteFg())
+            view.setHintTextColor(paletteMuted())
+            view.setBackgroundColor(paletteSurface())
+        } else if (view is TextView) {
+            view.setTextColor(paletteFg())
+        }
+        if (view is android.view.ViewGroup) for (i in 0 until view.childCount) applyThemeTree(view.getChildAt(i))
+    }
+    private fun button(label: String, action: () -> Unit) = Button(this).apply {
+        text = label; textSize = 11f; isAllCaps = false
+        setOnClickListener {
+            animate().scaleX(0.97f).scaleY(0.97f).setDuration(70).withEndAction {
+                animate().scaleX(1f).scaleY(1f).setDuration(110).start()
+            }.start()
+            action()
+        }
+    }
     private fun setStatus(s: String) { status.text = s }
-    private fun reset() { body.removeAllViews() }
+    private fun reset() {
+        body.animate().cancel()
+        body.removeAllViews()
+        body.alpha = 0f
+        body.translationY = 12f
+        body.post {
+            applyThemeTree(body)
+            body.animate().alpha(1f).translationY(0f).setDuration(220).setInterpolator(DecelerateInterpolator()).start()
+        }
+    }
     private fun addAction(label: String, action: () -> Unit) { body.addView(button(label, action)) }
 
     private fun showChat() {
         reset()
-        chatView = TextView(this).apply { text = history.toString().ifBlank { "Welcome! Import a compatible Gemma model using Model, then start chatting." }; textSize = 15f; setTextColor(0xFF202124.toInt()); setPadding(8, 8, 8, 8) }
+        chatView = TextView(this).apply { text = history.toString().ifBlank { "Welcome! Open Models to import a compatible .task model, then start chatting." }; textSize = 15f; setTextColor(0xFF202124.toInt()); setPadding(8, 8, 8, 8) }
         body.addView(ScrollView(this).apply { addView(chatView) }, LinearLayout.LayoutParams(-1, 0, 1f))
         prompt = EditText(this).apply { hint = "Message your companion…"; minLines = 2; maxLines = 4 }
         body.addView(prompt)
@@ -124,32 +194,18 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun importModel(uri: Uri) {
-        lifecycleScope.launch {
-            setStatus("Copying model to private app storage…")
-            try {
-                withContext(Dispatchers.IO) {
-                    contentResolver.openInputStream(uri).use { stream ->
-                        requireNotNull(stream) { "Cannot read selected file" }
-                        FileOutputStream(modelFile).use { stream.copyTo(it) }
-                    }
-                }
-                loadModel()
-            } catch (e: Exception) { setStatus("Import failed: " + e.localizedMessage) }
-        }
-    }
-
     private fun loadModel() {
         lifecycleScope.launch {
             setStatus("Loading model; large files can take a while…")
             try {
+                val selectedFile = modelFile()
                 val engine = withContext(Dispatchers.IO) {
                     LlmInference.createFromOptions(this@MainActivity, LlmInference.LlmInferenceOptions.builder()
-                        .setModelPath(modelFile.absolutePath).setMaxTokens(512).build())
+                        .setModelPath(selectedFile.absolutePath).setMaxTokens(512).build())
                 }
                 llm?.close()
                 llm = engine
-                modelStatus.text = "Local model • " + (modelFile.length() / (1024 * 1024)) + " MB"
+                modelStatus.text = "Local model • " + (selectedFile.length() / (1024 * 1024)) + " MB"
                 setStatus("Model loaded. Prompts and responses are processed on-device.")
             } catch (e: Exception) {
                 llm = null
@@ -168,7 +224,7 @@ class MainActivity : ComponentActivity() {
         }
         val engine = llm
         if (engine == null) {
-            setStatus("No model is ready. Use Model to import a compatible Gemma .task file and wait for “Model loaded”.")
+            setStatus("No model is ready. Open Models to import a compatible .task file and wait for “Model loaded”.")
             return
         }
 

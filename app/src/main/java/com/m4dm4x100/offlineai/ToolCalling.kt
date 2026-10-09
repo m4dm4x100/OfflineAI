@@ -41,8 +41,8 @@ class ToolRuntime(private val context: Context) {
         - android_open_settings: {"page":"wifi|bluetooth|app"}
         - android_open_url: {"url":"https://..."}; only HTTP(S) URLs
         - android_share: {"text":"..."}; open Android share sheet
-    """.trimIndent() + if (onlineEnabled()) "\n- web_search: {\"query\":\"...\"}; read-only Wikipedia search" else "" +
-        if (mcpEndpoint().isNotBlank()) "\n- mcp_list_tools: no arguments\n- mcp_call: {\"name\":\"server tool name\",\"arguments\":{...}}; only use listed and trusted MCP tools" else ""
+    """.trimIndent() + (if (onlineEnabled()) "\n- web_search: {\\"query\\":\\"...\\"}; read-only Wikipedia search" else "") +
+        (if (mcpEndpoint().isNotBlank()) "\n- mcp_list_tools: no arguments\n- mcp_call: {\\"name\\":\\"server tool name\\",\\"arguments\\":{...}}; only use listed and trusted MCP tools" else "")
 
     fun execute(name: String, args: JSONObject): String {
         if (!isTrusted(name)) return "Tool '$name' is disabled in trusted-tools settings."

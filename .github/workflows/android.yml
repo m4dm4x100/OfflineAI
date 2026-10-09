@@ -24,20 +24,20 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Build debug APK
         run: gradle assembleDebug
-      - name: Publish APK to GitHub Releases
+      - name: Publish APK into packages/releases/
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: nightly
-          name: OfflineAI Nightly Build
-          body: |
-            Automatically built debug APK from the latest successful build of the main branch.
-
-            This is a development build, not a signed production release.
-          prerelease: true
-          make_latest: false
-          files: app/build/outputs/apk/debug/app-debug.apk
-          fail_on_unmatched_files: true
+        run: |
+          mkdir -p packages/releases
+          cp app/build/outputs/apk/debug/app-debug.apk packages/releases/OfflineAI-debug.apk
+          if git ls-files --error-unmatch packages/releases/OfflineAI-debug.apk >/dev/null 2>&1 && git diff --quiet -- packages/releases/OfflineAI-debug.apk; then
+            echo "APK unchanged; no repository update needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add packages/releases/OfflineAI-debug.apk
+          git commit -m "Publish latest debug APK to packages/releases"
+          git push
       - name: Upload APK as optional workflow artifact
         uses: actions/upload-artifact@v4
         with:

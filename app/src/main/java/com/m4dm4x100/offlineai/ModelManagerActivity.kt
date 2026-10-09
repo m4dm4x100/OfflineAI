@@ -24,6 +24,7 @@ import java.util.Locale
 class ModelManagerActivity : ComponentActivity() {
     private lateinit var root: LinearLayout
     private lateinit var status: TextView
+    private lateinit var progress: ProgressBar
     private lateinit var modelList: LinearLayout
     private val prefs by lazy { getSharedPreferences("offlineai", MODE_PRIVATE) }
     private val modelDir by lazy { File(filesDir, "models").apply { mkdirs() } }
@@ -69,6 +70,8 @@ class ModelManagerActivity : ComponentActivity() {
             text = "Official source: Gemma 3 1B (MediaPipe-compatible variants). Accept the model licence on Hugging Face, download a compatible .task file, then import it here. GGUF and .litertlm files are not accepted by this app's current MediaPipe runtime."
             textSize = 13f; setTextColor(muted()); setPadding(0, 10, 0, 12)
         })
+        progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = 100; visibility = View.GONE }
+        root.addView(progress, LinearLayout.LayoutParams(-1, 8))
         status = TextView(this).apply { textSize = 13f; setTextColor(accent()); setPadding(0, 6, 0, 8) }
         root.addView(status)
         val scroll = ScrollView(this)
@@ -109,26 +112,41 @@ class ModelManagerActivity : ComponentActivity() {
                 var dest = File(modelDir, destName)
                 var n = 2
                 while (dest.exists()) { dest = File(modelDir, destName.removeSuffix(".task") + "-$n.task"); n++ }
+                progress.visibility = View.VISIBLE
+                progress.isIndeterminate = size <= 0
+                progress.progress = 0
                 status.text = "Importing model…"
                 withContext(Dispatchers.IO) {
                     val input = contentResolver.openInputStream(uri) ?: error("Cannot open selected file")
                     input.use { source ->
                         FileOutputStream(dest).use { output ->
                             val buffer = ByteArray(1024 * 1024)
+                            var copied = 0L
                             while (true) {
                                 val count = source.read(buffer)
                                 if (count < 0) break
                                 output.write(buffer, 0, count)
+                                copied += count
+                                if (size > 0) {
+                                    val percent = ((copied * 100) / size).toInt().coerceIn(0, 100)
+                                    withContext(Dispatchers.Main) {
+                                        progress.isIndeterminate = false
+                                        progress.progress = percent
+                                        status.text = "Importing model… $percent%"
+                                    }
+                                }
                             }
                             output.fd.sync()
                         }
                     }
                 }
+                progress.visibility = View.GONE
                 prefs.edit().putString("active_model", dest.name).apply()
                 status.text = "Imported ${dest.name} (${dest.length() / (1024 * 1024)} MB). Selected for chat."
                 setResult(Activity.RESULT_OK)
                 refreshModels()
             } catch (e: Exception) {
+                progress.visibility = View.GONE
                 status.text = "Import failed: ${e.localizedMessage ?: e.javaClass.simpleName}"
             }
         }

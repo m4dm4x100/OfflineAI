@@ -57,7 +57,7 @@ class ModelManagerActivity : ComponentActivity() {
         })
         val searchRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         searchInput = EditText(this).apply {
-            hint = "Search models (e.g. Gemma 1B)"; singleLine = true; textSize = 15f
+            hint = "Search models (e.g. Gemma 1B)"; setSingleLine(true); textSize = 15f
             setTextColor(fg()); setHintTextColor(muted()); setBackgroundColor(surface()); setPadding(12, 4, 12, 4)
             setText("litert-community Gemma")
             imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH

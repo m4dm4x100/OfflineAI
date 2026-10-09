@@ -29,7 +29,7 @@ jobs:
         run: |
           mkdir -p packages
           cp app/build/outputs/apk/debug/app-debug.apk packages/OfflineAI-debug.apk
-          if git diff --quiet -- packages/OfflineAI-debug.apk; then
+          if git ls-files --error-unmatch packages/OfflineAI-debug.apk >/dev/null 2>&1 && git diff --quiet -- packages/OfflineAI-debug.apk; then
             echo "APK unchanged; no repository update needed."
             exit 0
           fi

@@ -170,7 +170,8 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             try {
                 val runtime = ToolRuntime(this@MainActivity)
-                val routingPrompt = runtime.toolsPrompt() + "\n\nUser request: " + question
+                val mcpCatalog = withContext(Dispatchers.IO) { runtime.trustedMcpToolPrompt() }
+                val routingPrompt = runtime.toolsPrompt() + "\n" + mcpCatalog + "\n\nUser request: " + question
                 val routed = withContext(Dispatchers.IO) { engine.generateResponse(routingPrompt) }
                 val decision = parseToolDecision(routed)
                 val answer = if (decision == null) {

@@ -1,6 +1,6 @@
 package com.m4dm4x100.offlineai
 
-import android.app.Activity
+import androidx.activity.ComponentActivity
 import android.os.Bundle
 import android.view.ViewGroup
 import android.widget.Button
@@ -14,7 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class ToolSettingsActivity : Activity() {
+class ToolSettingsActivity : ComponentActivity() {
     private lateinit var runtime: ToolRuntime
     private lateinit var endpoint: EditText
     private lateinit var mcpNames: EditText

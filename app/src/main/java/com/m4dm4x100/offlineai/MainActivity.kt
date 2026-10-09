@@ -58,7 +58,6 @@ class MainActivity : ComponentActivity() {
         }
     }
     private val history = StringBuilder()
-    private val picker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { it?.let(::importModel) }
     private val imagePicker = registerForActivityResult(ActivityResultContracts.GetContent()) { it?.let(::analyzeImage) }
     private var llm: LlmInference? = null
     private var sendInProgress = false

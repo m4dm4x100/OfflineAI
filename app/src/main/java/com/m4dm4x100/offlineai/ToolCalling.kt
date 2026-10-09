@@ -45,19 +45,22 @@ class ToolRuntime(private val context: Context) {
         (if (mcpEndpoint().isNotBlank()) "\n- mcp_list_tools: no arguments\n- mcp_call: {\"name\":\"server tool name\",\"arguments\":{...}}; only use listed and trusted MCP tools. Trusted server tool names: ${mcpTrustedNames().joinToString(", ")}" else "")
 
     fun trustedMcpToolPrompt(): String = try {
-        if (!onlineEnabled() || mcpEndpoint().isBlank()) return ""
-        val tools = mcpRequest("tools/list").optJSONObject("result")?.optJSONArray("tools") ?: JSONArray()
-        buildString {
-            for (i in 0 until tools.length()) {
-                val item = tools.getJSONObject(i)
-                val name = item.optString("name")
-                if (mcpTrustedNames().contains(name)) {
-                    append("- mcp_call with name \"").append(name).append("\": ")
-                        .append(item.optString("description")).append("; schema=")
-                        .append(item.optJSONObject("inputSchema")?.toString() ?: "{}").append("\\n")
+        if (!onlineEnabled() || mcpEndpoint().isBlank()) {
+            ""
+        } else {
+            val tools = mcpRequest("tools/list").optJSONObject("result")?.optJSONArray("tools") ?: JSONArray()
+            buildString {
+                for (i in 0 until tools.length()) {
+                    val item = tools.getJSONObject(i)
+                    val name = item.optString("name")
+                    if (mcpTrustedNames().contains(name)) {
+                        append("- mcp_call with name \"").append(name).append("\": ")
+                            .append(item.optString("description")).append("; schema=")
+                            .append(item.optJSONObject("inputSchema")?.toString() ?: "{}").append("\n")
+                    }
                 }
-            }
-        }.take(8000)
+            }.take(8000)
+        }
     } catch (_: Exception) { "" }
 
     fun execute(name: String, args: JSONObject): String {
